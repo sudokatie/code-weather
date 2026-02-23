@@ -2,7 +2,7 @@ pub mod schema;
 
 pub use schema::{Config, ThresholdConfig, AnalysisConfig, DisplayConfig};
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use std::path::{Path, PathBuf};
 
 const CONFIG_FILENAME: &str = ".code-weather.toml";
