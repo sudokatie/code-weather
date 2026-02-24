@@ -1,1 +1,3 @@
-// Weather module
+pub mod conditions;
+
+pub use conditions::Condition;
