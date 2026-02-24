@@ -180,7 +180,7 @@ fn count_source_files(repo: &Repository) -> usize {
 }
 
 fn git_time_to_datetime(time: Time) -> DateTime<Utc> {
-    DateTime::from_timestamp(time.seconds(), 0).unwrap_or_else(|| Utc::now())
+    DateTime::from_timestamp(time.seconds(), 0).unwrap_or_else(Utc::now)
 }
 
 #[cfg(test)]

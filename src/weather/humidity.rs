@@ -14,14 +14,14 @@ impl Humidity {
     }
 
     pub fn description(&self) -> &'static str {
-        let base = match self.percent {
+        
+        (match self.percent {
             80..=100 => "Humid - excellent test coverage",
             60..=79 => "Comfortable - good test coverage",
             40..=59 => "Moderate - acceptable test coverage",
             20..=39 => "Low - poor test coverage",
             _ => "Dry - minimal or no test coverage",
-        };
-        base
+        }) as _
     }
 
     pub fn category(&self) -> &'static str {

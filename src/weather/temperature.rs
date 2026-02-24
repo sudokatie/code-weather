@@ -73,7 +73,7 @@ pub fn calculate_temperature(
     let total = recent_score + monthly_score + contributor_score;
     
     // Map 0-100 score to temperature range (32-100°F)
-    let temp = 32 + ((total as i32) * 68 / 100);
+    let temp = 32 + (total * 68 / 100);
     
     Temperature::new(temp)
 }

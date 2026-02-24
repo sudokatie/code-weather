@@ -1,22 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 /// Main configuration struct
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub thresholds: ThresholdConfig,
     pub analysis: AnalysisConfig,
     pub display: DisplayConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            thresholds: ThresholdConfig::default(),
-            analysis: AnalysisConfig::default(),
-            display: DisplayConfig::default(),
-        }
-    }
 }
 
 /// Thresholds for weather conditions

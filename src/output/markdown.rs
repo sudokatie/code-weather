@@ -6,7 +6,7 @@ impl MarkdownOutput {
     pub fn render(report: &WeatherReport, path: &str) -> String {
         let mut md = String::new();
 
-        md.push_str(&format!("# Code Weather Report\n\n"));
+        md.push_str("# Code Weather Report\n\n");
         md.push_str(&format!("**Path:** `{}`\n\n", path));
 
         md.push_str(&format!("## {} {}\n\n", report.condition.icon(), report.condition));
