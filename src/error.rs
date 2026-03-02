@@ -32,13 +32,18 @@ pub enum Error {
 }
 
 impl Error {
+    /// Exit codes per SPECS.md Section 10.1:
+    /// - PathNotFound/NotADirectory/NoSourceFiles: 1
+    /// - ParseError/GitError: 2
+    /// - ConfigError: 3
+    /// - IoError: 4
     pub fn exit_code(&self) -> i32 {
         match self {
-            Error::FileNotFound(_) => 2,
-            Error::NotGitRepo => 3,
-            Error::UnsupportedLanguage(_) => 4,
-            Error::ConfigError(_) => 5,
-            _ => 1,
+            Error::FileNotFound(_) => 1,
+            Error::NotGitRepo | Error::UnsupportedLanguage(_) | Error::AnalysisError(_) => 2,
+            Error::Git(_) => 2,
+            Error::ConfigError(_) | Error::Toml(_) => 3,
+            Error::Io(_) | Error::Json(_) => 4,
         }
     }
 }
@@ -51,32 +56,45 @@ mod tests {
 
     #[test]
     fn test_exit_code_file_not_found() {
+        // Per SPECS.md Section 10.1: PathNotFound = 1
         let err = Error::FileNotFound(PathBuf::from("/test"));
-        assert_eq!(err.exit_code(), 2);
+        assert_eq!(err.exit_code(), 1);
     }
 
     #[test]
     fn test_exit_code_not_git_repo() {
+        // Per SPECS.md Section 10.1: GitError = 2
         let err = Error::NotGitRepo;
-        assert_eq!(err.exit_code(), 3);
+        assert_eq!(err.exit_code(), 2);
     }
 
     #[test]
     fn test_exit_code_unsupported_language() {
+        // Treat as parse/analysis error = 2
         let err = Error::UnsupportedLanguage("cobol".to_string());
-        assert_eq!(err.exit_code(), 4);
+        assert_eq!(err.exit_code(), 2);
     }
 
     #[test]
     fn test_exit_code_config() {
+        // Per SPECS.md Section 10.1: ConfigError = 3
         let err = Error::ConfigError("bad config".to_string());
-        assert_eq!(err.exit_code(), 5);
+        assert_eq!(err.exit_code(), 3);
     }
 
     #[test]
-    fn test_exit_code_general() {
+    fn test_exit_code_analysis() {
+        // Analysis/parse errors = 2
         let err = Error::AnalysisError("failed".to_string());
-        assert_eq!(err.exit_code(), 1);
+        assert_eq!(err.exit_code(), 2);
+    }
+
+    #[test]
+    fn test_exit_code_io() {
+        // Per SPECS.md Section 10.1: IoError = 4
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file");
+        let err: Error = io_err.into();
+        assert_eq!(err.exit_code(), 4);
     }
 
     #[test]

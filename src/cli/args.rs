@@ -36,6 +36,9 @@ pub enum Command {
 
     /// Explain what each weather condition means
     Explain(ExplainArgs),
+
+    /// Show version information
+    Version,
 }
 
 #[derive(ClapArgs, Debug, Clone)]
@@ -266,5 +269,11 @@ mod tests {
         } else {
             panic!("Expected Explain command");
         }
+    }
+
+    #[test]
+    fn test_version_command() {
+        let args = Args::parse_from(["code-weather", "version"]);
+        assert!(matches!(args.command, Some(Command::Version)));
     }
 }

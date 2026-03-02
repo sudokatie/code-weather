@@ -22,6 +22,10 @@ pub fn run(args: Args) -> Result<()> {
         Some(Command::Forecast(forecast_args)) => run_forecast(&args, forecast_args),
         Some(Command::Init(init_args)) => run_init(init_args),
         Some(Command::Explain(explain_args)) => run_explain(explain_args),
+        Some(Command::Version) => {
+            println!("code-weather {}", env!("CARGO_PKG_VERSION"));
+            Ok(())
+        }
         None => {
             // Default to forecast in current directory
             let forecast_args = ForecastArgs {

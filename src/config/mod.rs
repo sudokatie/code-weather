@@ -133,7 +133,7 @@ fn parse_bool(val: &str) -> bool {
 fn merge_config(target: &mut Config, source: &Config) {
     // For simplicity, we replace entire sections if they differ from defaults
     // A more sophisticated merge would check field-by-field
-    
+
     // Thresholds - always override if not default
     let default_thresholds = ThresholdConfig::default();
     if source.thresholds.sunny_coverage != default_thresholds.sunny_coverage {
