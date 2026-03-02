@@ -1,5 +1,5 @@
+use ignore::WalkBuilder;
 use std::path::Path;
-use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Default)]
 pub struct TestMetrics {
@@ -14,10 +14,12 @@ pub fn analyze_tests(dir: &Path, exclude: &[String]) -> TestMetrics {
     let mut test_files = 0;
     let mut source_files = 0;
 
-    for entry in WalkDir::new(dir)
-        .into_iter()
+    for entry in WalkBuilder::new(dir)
+        .hidden(false)
+        .git_ignore(false) // Don't skip test files that might be gitignored
+        .build()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     {
         let path = entry.path();
 

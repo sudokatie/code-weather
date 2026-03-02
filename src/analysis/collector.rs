@@ -39,6 +39,12 @@ pub struct Collector<'a> {
     config: &'a Config,
     path: &'a Path,
     show_progress: bool,
+    /// CLI include patterns (glob)
+    include_patterns: Vec<String>,
+    /// CLI exclude patterns (glob)
+    exclude_patterns: Vec<String>,
+    /// Filter to specific language
+    lang_filter: Option<Language>,
 }
 
 impl<'a> Collector<'a> {
@@ -47,6 +53,9 @@ impl<'a> Collector<'a> {
             config,
             path,
             show_progress: true,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
+            lang_filter: None,
         }
     }
 
@@ -55,8 +64,42 @@ impl<'a> Collector<'a> {
         self
     }
 
+    pub fn with_include(mut self, patterns: Vec<String>) -> Self {
+        self.include_patterns = patterns;
+        self
+    }
+
+    pub fn with_exclude(mut self, patterns: Vec<String>) -> Self {
+        self.exclude_patterns = patterns;
+        self
+    }
+
+    pub fn with_lang(mut self, lang: Option<String>) -> Self {
+        self.lang_filter = lang.and_then(|l| match l.to_lowercase().as_str() {
+            "ts" | "typescript" => Some(Language::TypeScript),
+            "js" | "javascript" => Some(Language::JavaScript),
+            "py" | "python" => Some(Language::Python),
+            "rs" | "rust" => Some(Language::Rust),
+            "go" | "golang" => Some(Language::Go),
+            _ => None,
+        });
+        self
+    }
+
     pub fn analyze(&self) -> Result<AnalysisResult, Error> {
         let start = Instant::now();
+
+        // Compile glob patterns for include/exclude
+        let include_globs: Vec<_> = self
+            .include_patterns
+            .iter()
+            .filter_map(|p| glob::Pattern::new(p).ok())
+            .collect();
+        let exclude_globs: Vec<_> = self
+            .exclude_patterns
+            .iter()
+            .filter_map(|p| glob::Pattern::new(p).ok())
+            .collect();
 
         // Collect all source files using ignore crate (respects .gitignore)
         let files: Vec<_> = WalkBuilder::new(self.path)
@@ -69,7 +112,7 @@ impl<'a> Collector<'a> {
             .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
             .filter(|e| {
                 let path_str = e.path().to_string_lossy();
-                // Also apply config excludes
+                // Apply config excludes
                 !self
                     .config
                     .analysis
@@ -77,7 +120,32 @@ impl<'a> Collector<'a> {
                     .iter()
                     .any(|ex| path_str.contains(ex))
             })
-            .filter(|e| Language::from_path(e.path()).is_some())
+            .filter(|e| {
+                // Apply CLI exclude patterns
+                if exclude_globs.is_empty() {
+                    return true;
+                }
+                let path_str = e.path().to_string_lossy();
+                !exclude_globs.iter().any(|g| g.matches(&path_str))
+            })
+            .filter(|e| {
+                // Apply CLI include patterns (if any specified, file must match one)
+                if include_globs.is_empty() {
+                    return true;
+                }
+                let path_str = e.path().to_string_lossy();
+                include_globs.iter().any(|g| g.matches(&path_str))
+            })
+            .filter(|e| {
+                // Filter by language
+                let lang = Language::from_path(e.path());
+                match (&self.lang_filter, lang) {
+                    (Some(filter), Some(detected)) => filter == &detected,
+                    (Some(_), None) => false,
+                    (None, Some(_)) => true,
+                    (None, None) => false,
+                }
+            })
             .collect();
 
         let total_files = files.len();
@@ -414,5 +482,61 @@ mod tests {
         let result = collector.analyze().unwrap();
         assert_eq!(result.file_count, 10);
         assert_eq!(result.complexity.total_functions, 10);
+    }
+
+    #[test]
+    fn test_collector_with_include_pattern() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("app.ts"), "function app() {}").unwrap();
+        std::fs::write(dir.path().join("util.ts"), "function util() {}").unwrap();
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path())
+            .with_progress(false)
+            .with_include(vec!["*app*".to_string()]);
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 1);
+    }
+
+    #[test]
+    fn test_collector_with_exclude_pattern() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("app.ts"), "function app() {}").unwrap();
+        std::fs::write(dir.path().join("util.ts"), "function util() {}").unwrap();
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path())
+            .with_progress(false)
+            .with_exclude(vec!["*util*".to_string()]);
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 1);
+    }
+
+    #[test]
+    fn test_collector_with_lang_filter_ts() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("app.ts"), "function app() {}").unwrap();
+        std::fs::write(dir.path().join("util.py"), "def util(): pass").unwrap();
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path())
+            .with_progress(false)
+            .with_lang(Some("ts".to_string()));
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 1);
+    }
+
+    #[test]
+    fn test_collector_with_lang_filter_python() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("app.ts"), "function app() {}").unwrap();
+        std::fs::write(dir.path().join("util.py"), "def util(): pass").unwrap();
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path())
+            .with_progress(false)
+            .with_lang(Some("python".to_string()));
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 1);
     }
 }

@@ -29,9 +29,6 @@ pub enum Error {
 
     #[error("TOML error: {0}")]
     Toml(#[from] toml::de::Error),
-
-    #[error("Walk error: {0}")]
-    Walk(#[from] walkdir::Error),
 }
 
 impl Error {

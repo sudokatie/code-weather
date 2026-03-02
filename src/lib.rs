@@ -59,8 +59,11 @@ fn run_forecast(args: &Args, forecast: &cli::ForecastArgs) -> Result<()> {
     }
     config.analysis.skip_tests = forecast.no_tests;
 
-    // Run analysis
-    let collector = Collector::new(&config, path);
+    // Run analysis with CLI filters
+    let collector = Collector::new(&config, path)
+        .with_include(forecast.include.clone())
+        .with_exclude(forecast.exclude.clone())
+        .with_lang(forecast.lang.clone());
     let analysis = collector.analyze()?;
 
     // Calculate weather metrics
