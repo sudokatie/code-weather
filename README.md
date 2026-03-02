@@ -93,6 +93,18 @@ code-weather explain stormy
 
 ## Configuration
 
+### Config Precedence
+
+Settings are loaded in this order (highest priority first):
+
+1. **CLI flags** - Always win
+2. **Environment variables** - `CODE_WEATHER_*`
+3. **Project config** - `.code-weather.toml` in project root
+4. **User config** - `~/.config/code-weather/config.toml`
+5. **Built-in defaults**
+
+### Project Config
+
 Create `.code-weather.toml` in your project root:
 
 ```toml
@@ -103,6 +115,42 @@ cloudy_coverage = 50   # Below this gets cloudy
 [analysis]
 exclude = ["node_modules", "vendor", "target", ".git"]
 ```
+
+### User Config
+
+For settings that apply to all projects, create `~/.config/code-weather/config.toml`:
+
+```toml
+[display]
+temp_unit = "fahrenheit"
+color = true
+
+[thresholds]
+sunny_coverage = 85
+```
+
+### Environment Variables
+
+Override any setting via environment variables:
+
+```bash
+# Thresholds
+CODE_WEATHER_SUNNY_COVERAGE=90
+CODE_WEATHER_CLOUDY_COVERAGE=60
+CODE_WEATHER_SUNNY_COMPLEXITY=8
+CODE_WEATHER_CLOUDY_COMPLEXITY=15
+
+# Analysis
+CODE_WEATHER_SKIP_TESTS=true
+CODE_WEATHER_SKIP_GIT=true
+CODE_WEATHER_GIT_DEPTH=50
+
+# Display
+CODE_WEATHER_NO_COLOR=true
+CODE_WEATHER_TEMP_UNIT=celsius
+```
+
+Useful for CI pipelines where you want consistent thresholds across repos.
 
 ## Sample Output
 
