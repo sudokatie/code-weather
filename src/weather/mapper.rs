@@ -17,7 +17,25 @@ impl WeatherReport {
         wind: Wind,
         visibility: Visibility,
     ) -> Self {
-        let condition = determine_condition(&temperature, &humidity, &wind, &visibility);
+        let condition = determine_condition(&temperature, &humidity, &wind, &visibility, 80, 50);
+        Self {
+            condition,
+            temperature,
+            humidity,
+            wind,
+            visibility,
+        }
+    }
+
+    pub fn new_with_thresholds(
+        temperature: Temperature,
+        humidity: Humidity,
+        wind: Wind,
+        visibility: Visibility,
+        sunny_threshold: u8,
+        cloudy_threshold: u8,
+    ) -> Self {
+        let condition = determine_condition(&temperature, &humidity, &wind, &visibility, sunny_threshold, cloudy_threshold);
         Self {
             condition,
             temperature,
@@ -45,6 +63,8 @@ fn determine_condition(
     humidity: &Humidity,
     wind: &Wind,
     visibility: &Visibility,
+    sunny_threshold: u8,
+    cloudy_threshold: u8,
 ) -> Condition {
     // Frozen takes precedence
     if temperature.fahrenheit < 32 {
@@ -66,13 +86,16 @@ fn determine_condition(
         return Condition::Rainy;
     }
 
-    // Cloudy if some concerns
-    if humidity.percent < 60 || visibility.miles < 7 || wind.speed > 15 {
+    // Calculate overall health score
+    let health = ((humidity.percent as u16 + visibility.miles as u16 * 10) / 2) as u8;
+
+    // Cloudy if below cloudy threshold
+    if health < cloudy_threshold || humidity.percent < 60 || visibility.miles < 7 || wind.speed > 15 {
         return Condition::Cloudy;
     }
 
-    // Partly cloudy if minor issues
-    if humidity.percent < 75 || visibility.miles < 9 {
+    // Partly cloudy if below sunny threshold
+    if health < sunny_threshold || humidity.percent < 75 || visibility.miles < 9 {
         return Condition::PartlyCloudy;
     }
 

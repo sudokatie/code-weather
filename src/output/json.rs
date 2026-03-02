@@ -1,4 +1,5 @@
 use crate::weather::WeatherReport;
+use crate::{Advisory, RegionalForecast};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -11,6 +12,25 @@ pub struct JsonReport {
     pub wind: JsonWind,
     pub visibility: JsonVisibility,
     pub summary: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub regions: Vec<JsonRegion>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub advisories: Vec<JsonAdvisory>,
+}
+
+#[derive(Serialize)]
+pub struct JsonRegion {
+    pub path: String,
+    pub condition: String,
+    pub summary: String,
+}
+
+#[derive(Serialize)]
+pub struct JsonAdvisory {
+    pub severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    pub message: String,
 }
 
 #[derive(Serialize)]
@@ -46,6 +66,15 @@ pub struct JsonVisibility {
 
 impl JsonReport {
     pub fn from_weather_report(report: &WeatherReport, path: &str) -> Self {
+        Self::from_weather_report_full(report, path, &[], &[])
+    }
+
+    pub fn from_weather_report_full(
+        report: &WeatherReport,
+        path: &str,
+        regions: &[RegionalForecast],
+        advisories: &[Advisory],
+    ) -> Self {
         Self {
             path: path.to_string(),
             condition: format!("{}", report.condition),
@@ -74,6 +103,16 @@ impl JsonReport {
                 description: report.visibility.description().to_string(),
             },
             summary: report.summary(),
+            regions: regions.iter().map(|r| JsonRegion {
+                path: r.path.clone(),
+                condition: format!("{}", r.condition),
+                summary: r.summary.clone(),
+            }).collect(),
+            advisories: advisories.iter().map(|a| JsonAdvisory {
+                severity: format!("{}", a.severity),
+                region: a.region.clone(),
+                message: a.message.clone(),
+            }).collect(),
         }
     }
 

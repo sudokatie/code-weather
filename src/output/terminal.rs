@@ -1,4 +1,5 @@
 use crate::weather::{WeatherReport, Condition};
+use crate::{Advisory, AdvisorySeverity, RegionalForecast};
 use crossterm::style::{Color, Stylize};
 use std::io::{self, Write};
 
@@ -13,6 +14,16 @@ impl TerminalOutput {
     }
 
     pub fn render(&self, report: &WeatherReport, path: &str) -> io::Result<()> {
+        self.render_full(report, path, &[], &[])
+    }
+
+    pub fn render_full(
+        &self,
+        report: &WeatherReport,
+        path: &str,
+        regions: &[RegionalForecast],
+        advisories: &[Advisory],
+    ) -> io::Result<()> {
         let mut stdout = io::stdout();
 
         // Header
@@ -33,10 +44,75 @@ impl TerminalOutput {
         writeln!(stdout, "  {}", report.condition.description())?;
         writeln!(stdout)?;
 
+        // Advisories
+        if !advisories.is_empty() {
+            self.render_advisories(&mut stdout, advisories)?;
+            writeln!(stdout)?;
+        }
+
+        // Regional breakdown
+        if !regions.is_empty() {
+            self.render_regions(&mut stdout, regions)?;
+            writeln!(stdout)?;
+        }
+
         if self.verbose {
             self.render_verbose(&mut stdout, report)?;
         }
 
+        Ok(())
+    }
+
+    fn render_advisories(&self, w: &mut impl Write, advisories: &[Advisory]) -> io::Result<()> {
+        writeln!(w, "  Advisories")?;
+        writeln!(w, "  {}", "─".repeat(40))?;
+        
+        for advisory in advisories {
+            let severity_str = match advisory.severity {
+                AdvisorySeverity::Watch => "⚠️  WATCH",
+                AdvisorySeverity::Warning => "🚨 WARNING",
+            };
+            
+            let color = match advisory.severity {
+                AdvisorySeverity::Watch => Color::Yellow,
+                AdvisorySeverity::Warning => Color::Red,
+            };
+            
+            if self.no_color {
+                if let Some(ref region) = advisory.region {
+                    writeln!(w, "  {} [{}]: {}", severity_str, region, advisory.message)?;
+                } else {
+                    writeln!(w, "  {}: {}", severity_str, advisory.message)?;
+                }
+            } else {
+                let styled = format!("{}", severity_str).with(color);
+                if let Some(ref region) = advisory.region {
+                    writeln!(w, "  {} [{}]: {}", styled, region, advisory.message)?;
+                } else {
+                    writeln!(w, "  {}: {}", styled, advisory.message)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn render_regions(&self, w: &mut impl Write, regions: &[RegionalForecast]) -> io::Result<()> {
+        writeln!(w, "  Regional Breakdown")?;
+        writeln!(w, "  {}", "─".repeat(40))?;
+        
+        for region in regions {
+            let icon = region.condition.icon();
+            if self.no_color {
+                writeln!(w, "  {} {} - {}", icon, region.path, region.summary)?;
+            } else {
+                writeln!(w, "  {} {} - {}", 
+                    icon,
+                    region.path.clone().with(region.condition.color()),
+                    region.summary)?;
+            }
+        }
+        
         Ok(())
     }
 

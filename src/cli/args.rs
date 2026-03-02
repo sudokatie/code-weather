@@ -67,10 +67,26 @@ pub struct ForecastArgs {
     /// Skip git analysis
     #[arg(long)]
     pub no_git: bool,
+    
+    /// Skip test detection
+    #[arg(long)]
+    pub no_tests: bool,
+    
+    /// Override sunny threshold (0-100)
+    #[arg(long, value_name = "N")]
+    pub threshold_sunny: Option<u8>,
+    
+    /// Override cloudy threshold (0-100)
+    #[arg(long, value_name = "N")]
+    pub threshold_cloudy: Option<u8>,
 }
 
 #[derive(ClapArgs, Debug, Clone)]
 pub struct InitArgs {
+    /// Generate config with all options documented
+    #[arg(long)]
+    pub full: bool,
+    
     /// Overwrite existing config
     #[arg(short, long)]
     pub force: bool,
@@ -80,6 +96,10 @@ pub struct InitArgs {
 pub struct ExplainArgs {
     /// Specific condition to explain (e.g., "sunny", "cloudy")
     pub condition: Option<String>,
+    
+    /// Show the specific metrics that determine each condition
+    #[arg(long)]
+    pub metrics: bool,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, Default, PartialEq)]
@@ -185,5 +205,66 @@ mod tests {
         assert!(help.contains("forecast"));
         assert!(help.contains("init"));
         assert!(help.contains("explain"));
+    }
+    
+    #[test]
+    fn test_no_tests_flag() {
+        let args = Args::parse_from(["code-weather", "forecast", "--no-tests"]);
+        if let Some(Command::Forecast(f)) = args.command {
+            assert!(f.no_tests);
+        } else {
+            panic!("Expected Forecast command");
+        }
+    }
+    
+    #[test]
+    fn test_threshold_sunny() {
+        let args = Args::parse_from(["code-weather", "forecast", "--threshold-sunny", "85"]);
+        if let Some(Command::Forecast(f)) = args.command {
+            assert_eq!(f.threshold_sunny, Some(85));
+        } else {
+            panic!("Expected Forecast command");
+        }
+    }
+    
+    #[test]
+    fn test_threshold_cloudy() {
+        let args = Args::parse_from(["code-weather", "forecast", "--threshold-cloudy", "60"]);
+        if let Some(Command::Forecast(f)) = args.command {
+            assert_eq!(f.threshold_cloudy, Some(60));
+        } else {
+            panic!("Expected Forecast command");
+        }
+    }
+    
+    #[test]
+    fn test_init_full() {
+        let args = Args::parse_from(["code-weather", "init", "--full"]);
+        if let Some(Command::Init(i)) = args.command {
+            assert!(i.full);
+        } else {
+            panic!("Expected Init command");
+        }
+    }
+    
+    #[test]
+    fn test_explain_metrics() {
+        let args = Args::parse_from(["code-weather", "explain", "--metrics"]);
+        if let Some(Command::Explain(e)) = args.command {
+            assert!(e.metrics);
+        } else {
+            panic!("Expected Explain command");
+        }
+    }
+    
+    #[test]
+    fn test_explain_condition_with_metrics() {
+        let args = Args::parse_from(["code-weather", "explain", "sunny", "--metrics"]);
+        if let Some(Command::Explain(e)) = args.command {
+            assert_eq!(e.condition, Some("sunny".to_string()));
+            assert!(e.metrics);
+        } else {
+            panic!("Expected Explain command");
+        }
     }
 }

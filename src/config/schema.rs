@@ -60,6 +60,8 @@ pub struct AnalysisConfig {
     pub analyze_git: bool,
     /// Git history depth (commits)
     pub git_depth: usize,
+    /// Skip test detection and coverage analysis
+    pub skip_tests: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -78,6 +80,7 @@ impl Default for AnalysisConfig {
             max_file_size: 1024 * 1024, // 1MB
             analyze_git: true,
             git_depth: 100,
+            skip_tests: false,
         }
     }
 }

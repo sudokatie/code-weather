@@ -1,9 +1,19 @@
 use crate::weather::WeatherReport;
+use crate::{Advisory, AdvisorySeverity, RegionalForecast};
 
 pub struct MarkdownOutput;
 
 impl MarkdownOutput {
     pub fn render(report: &WeatherReport, path: &str) -> String {
+        Self::render_full(report, path, &[], &[])
+    }
+
+    pub fn render_full(
+        report: &WeatherReport,
+        path: &str,
+        regions: &[RegionalForecast],
+        advisories: &[Advisory],
+    ) -> String {
         let mut md = String::new();
 
         md.push_str("# Code Weather Report\n\n");
@@ -41,6 +51,40 @@ impl MarkdownOutput {
             report.visibility.miles,
             report.visibility.description()
         ));
+
+        // Advisories section
+        if !advisories.is_empty() {
+            md.push_str("\n## Advisories\n\n");
+            for advisory in advisories {
+                let icon = match advisory.severity {
+                    AdvisorySeverity::Watch => "⚠️",
+                    AdvisorySeverity::Warning => "🚨",
+                };
+                if let Some(ref region) = advisory.region {
+                    md.push_str(&format!("- {} **{}** [{}]: {}\n", 
+                        icon, advisory.severity, region, advisory.message));
+                } else {
+                    md.push_str(&format!("- {} **{}**: {}\n", 
+                        icon, advisory.severity, advisory.message));
+                }
+            }
+        }
+
+        // Regional breakdown
+        if !regions.is_empty() {
+            md.push_str("\n## Regional Breakdown\n\n");
+            md.push_str("| Region | Condition | Summary |\n");
+            md.push_str("|--------|-----------|--------|\n");
+            for region in regions {
+                md.push_str(&format!(
+                    "| `{}` | {} {} | {} |\n",
+                    region.path,
+                    region.condition.icon(),
+                    region.condition,
+                    region.summary
+                ));
+            }
+        }
 
         md.push_str("\n---\n\n");
         md.push_str(&format!("*Summary: {}*\n", report.summary()));
