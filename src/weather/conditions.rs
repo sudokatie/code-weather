@@ -26,12 +26,12 @@ impl Condition {
         }
     }
 
-    /// Terminal color for condition
+    /// Terminal color for condition (per SPECS.md Section 7.1)
     pub fn color(&self) -> Color {
         match self {
-            Self::Sunny => Color::Yellow,
-            Self::PartlyCloudy => Color::White,
-            Self::Cloudy => Color::DarkGrey,
+            Self::Sunny => Color::Green,
+            Self::PartlyCloudy => Color::Yellow,
+            Self::Cloudy => Color::White,
             Self::Rainy => Color::Blue,
             Self::Stormy => Color::Red,
             Self::Foggy => Color::Grey,
@@ -65,16 +65,59 @@ impl Condition {
         }
     }
 
-    /// ASCII art representation (3 lines)
-    pub fn ascii_art(&self) -> [&'static str; 3] {
+    /// ASCII art representation (5 lines per SPECS.md Section 9.1)
+    /// Each line is exactly 13 characters wide
+    pub fn ascii_art(&self) -> [&'static str; 5] {
         match self {
-            Self::Sunny => ["   \\   /   ", "    .-.    ", " - (   ) - "],
-            Self::PartlyCloudy => ["  \\  /     ", " _/''.-.   ", "   \\_(  ). "],
-            Self::Cloudy => ["           ", "    .--.   ", " .-(    ). "],
-            Self::Rainy => ["    .-.    ", "   (   ).  ", "  (___(__) "],
-            Self::Stormy => ["    .-.    ", "   (   ).  ", "  /(___)\\  "],
-            Self::Foggy => ["           ", "_ - _ - _ -", " _ - _ - _ "],
-            Self::Frozen => ["    *  *   ", "  *    *   ", "    *  *   "],
+            Self::Sunny => [
+                "    \\   /    ",
+                "     .-.     ",
+                "  -(   ) -   ",
+                "     `-'     ",
+                "    /   \\    ",
+            ],
+            Self::PartlyCloudy => [
+                "   \\  /      ",
+                " _ /\"\".-.    ",
+                "   \\_(   ).  ",
+                "   /(___(__) ",
+                "             ",
+            ],
+            Self::Cloudy => [
+                "             ",
+                "     .--.    ",
+                "  .-(    ).  ",
+                " (___.__).__)",
+                "             ",
+            ],
+            Self::Rainy => [
+                "     .--.    ",
+                "  .-(    ).  ",
+                " (___.__).__)",
+                "  ,',' ',',' ",
+                "             ",
+            ],
+            Self::Stormy => [
+                "     .--.    ",
+                "  .-(    ).  ",
+                " (___.__).__)",
+                "  /_'/_'/_'  ",
+                "             ",
+            ],
+            Self::Foggy => [
+                "             ",
+                " _ - _ - _ - ",
+                "  _ - _ - _  ",
+                " _ - _ - _ - ",
+                "             ",
+            ],
+            Self::Frozen => [
+                "     .--.    ",
+                "  .-(    ).  ",
+                " (___.__).__)",
+                "  * * * * *  ",
+                "             ",
+            ],
         }
     }
 
