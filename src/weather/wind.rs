@@ -3,16 +3,16 @@ use crate::git::ChurnTrend;
 /// Wind based on code churn
 #[derive(Debug, Clone, Copy)]
 pub struct Wind {
-    pub speed: u8,      // mph
+    pub speed: u8, // mph
     pub direction: WindDirection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WindDirection {
-    Growing,    // Code growing
-    Shrinking,  // Code shrinking
-    Churning,   // High activity, no net change
-    Calm,       // Little activity
+    Growing,   // Code growing
+    Shrinking, // Code shrinking
+    Churning,  // High activity, no net change
+    Calm,      // Little activity
 }
 
 impl Wind {

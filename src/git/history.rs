@@ -91,8 +91,7 @@ pub fn analyze_git(path: &Path) -> Result<GitMetrics, Error> {
 }
 
 fn git_time_to_datetime(time: Time) -> DateTime<Utc> {
-    DateTime::from_timestamp(time.seconds(), 0)
-        .unwrap_or_else(Utc::now)
+    DateTime::from_timestamp(time.seconds(), 0).unwrap_or_else(Utc::now)
 }
 
 #[cfg(test)]
@@ -107,13 +106,13 @@ mod tests {
             .current_dir(dir)
             .output()
             .expect("git init failed");
-        
+
         Command::new("git")
             .args(["config", "user.email", "test@test.com"])
             .current_dir(dir)
             .output()
             .expect("git config email failed");
-        
+
         Command::new("git")
             .args(["config", "user.name", "Test"])
             .current_dir(dir)
@@ -147,7 +146,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_git_repo(dir.path());
         make_commit(dir.path(), "initial");
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(metrics.is_repo);
     }
@@ -158,7 +157,7 @@ mod tests {
         init_git_repo(dir.path());
         make_commit(dir.path(), "commit 1");
         make_commit(dir.path(), "commit 2");
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(metrics.commits_7d >= 2);
         assert!(metrics.commits_30d >= 2);
@@ -169,7 +168,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_git_repo(dir.path());
         make_commit(dir.path(), "commit 1");
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(metrics.contributors >= 1);
     }
@@ -179,7 +178,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_git_repo(dir.path());
         make_commit(dir.path(), "commit 1");
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(metrics.last_commit_days.is_some());
         assert!(metrics.last_commit_days.unwrap() < 1);
@@ -190,7 +189,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_git_repo(dir.path());
         make_commit(dir.path(), "commit 1");
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(!metrics.is_abandoned);
     }
@@ -200,7 +199,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_git_repo(dir.path());
         // No commits
-        
+
         let metrics = analyze_git(dir.path()).unwrap();
         assert!(metrics.is_abandoned);
     }

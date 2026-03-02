@@ -6,8 +6,8 @@ pub mod visibility;
 pub mod wind;
 
 pub use conditions::Condition;
-pub use humidity::{Humidity, calculate_humidity};
+pub use humidity::{calculate_humidity, Humidity};
 pub use mapper::WeatherReport;
-pub use temperature::{Temperature, calculate_temperature};
-pub use visibility::{Visibility, calculate_visibility};
-pub use wind::{Wind, WindDirection, calculate_wind};
+pub use temperature::{calculate_temperature, Temperature};
+pub use visibility::{calculate_visibility, Visibility};
+pub use wind::{calculate_wind, Wind, WindDirection};

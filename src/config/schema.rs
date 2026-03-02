@@ -110,7 +110,7 @@ impl Default for DisplayConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_default_thresholds() {
         let config = Config::default();
@@ -118,14 +118,17 @@ mod tests {
         assert_eq!(config.thresholds.cloudy_coverage, 50);
         assert_eq!(config.thresholds.sunny_complexity, 10);
     }
-    
+
     #[test]
     fn test_default_excludes() {
         let config = Config::default();
-        assert!(config.analysis.exclude.contains(&"node_modules".to_string()));
+        assert!(config
+            .analysis
+            .exclude
+            .contains(&"node_modules".to_string()));
         assert!(config.analysis.exclude.contains(&"target".to_string()));
     }
-    
+
     #[test]
     fn test_parse_minimal_config() {
         let toml = r#"
@@ -137,7 +140,7 @@ sunny_coverage = 90
         // Other fields use defaults
         assert_eq!(config.thresholds.cloudy_coverage, 50);
     }
-    
+
     #[test]
     fn test_parse_full_config() {
         let toml = r#"
@@ -161,12 +164,15 @@ color = false
         assert!(!config.analysis.analyze_git);
         assert!(!config.display.color);
     }
-    
+
     #[test]
     fn test_serialize_roundtrip() {
         let config = Config::default();
         let toml = toml::to_string(&config).unwrap();
         let parsed: Config = toml::from_str(&toml).unwrap();
-        assert_eq!(parsed.thresholds.sunny_coverage, config.thresholds.sunny_coverage);
+        assert_eq!(
+            parsed.thresholds.sunny_coverage,
+            config.thresholds.sunny_coverage
+        );
     }
 }

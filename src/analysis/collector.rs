@@ -1,13 +1,17 @@
 use crate::analysis::{
-    ComplexityMetrics, DocumentationMetrics, StructureMetrics, TestMetrics,
     analyze_complexity, analyze_documentation, analyze_structure, analyze_tests, check_readme,
+    ComplexityMetrics, DocumentationMetrics, StructureMetrics, TestMetrics,
 };
 use crate::config::Config;
 use crate::error::Error;
-use crate::git::{GitMetrics, ChurnMetrics, analyze_git, analyze_churn};
+use crate::git::{analyze_churn, analyze_git, ChurnMetrics, GitMetrics};
 use crate::languages::Language;
+use ignore::WalkBuilder;
+use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 use std::path::Path;
-use walkdir::WalkDir;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 
 /// Aggregated analysis results for a codebase
 #[derive(Debug, Clone, Default)]
@@ -22,60 +26,134 @@ pub struct AnalysisResult {
     pub total_lines: usize,
 }
 
+/// Single file analysis result for parallel processing
+#[derive(Debug, Clone, Default)]
+struct FileAnalysis {
+    complexity: ComplexityMetrics,
+    docs: DocumentationMetrics,
+    structure: StructureMetrics,
+}
+
 /// Collector that runs all analysis
 pub struct Collector<'a> {
     config: &'a Config,
     path: &'a Path,
+    show_progress: bool,
 }
 
 impl<'a> Collector<'a> {
     pub fn new(config: &'a Config, path: &'a Path) -> Self {
-        Self { config, path }
+        Self {
+            config,
+            path,
+            show_progress: true,
+        }
+    }
+
+    pub fn with_progress(mut self, show: bool) -> Self {
+        self.show_progress = show;
+        self
     }
 
     pub fn analyze(&self) -> Result<AnalysisResult, Error> {
-        let mut result = AnalysisResult::default();
+        let start = Instant::now();
+
+        // Collect all source files using ignore crate (respects .gitignore)
+        let files: Vec<_> = WalkBuilder::new(self.path)
+            .hidden(true) // Skip hidden files
+            .git_ignore(true) // Respect .gitignore
+            .git_global(true) // Respect global gitignore
+            .git_exclude(true) // Respect .git/info/exclude
+            .build()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+            .filter(|e| {
+                let path_str = e.path().to_string_lossy();
+                // Also apply config excludes
+                !self
+                    .config
+                    .analysis
+                    .exclude
+                    .iter()
+                    .any(|ex| path_str.contains(ex))
+            })
+            .filter(|e| Language::from_path(e.path()).is_some())
+            .collect();
+
+        let total_files = files.len();
+
+        // Set up progress bar if we have many files and it's taking time
+        let progress = if self.show_progress && total_files > 100 {
+            let pb = ProgressBar::new(total_files as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("Analyzing... [{bar:40.cyan/blue}] {pos}/{len} files ({eta})")
+                    .unwrap_or_else(|_| ProgressStyle::default_bar())
+                    .progress_chars("=>-"),
+            );
+            Some(pb)
+        } else {
+            None
+        };
+
+        let processed = AtomicUsize::new(0);
+
+        // Process files in parallel using rayon
+        let results: Vec<FileAnalysis> = files
+            .par_iter()
+            .filter_map(|entry| {
+                let path = entry.path();
+
+                // Detect language
+                let lang = Language::from_path(path)?;
+
+                // Read file (skip if too large or unreadable)
+                let content = std::fs::read(path).ok()?;
+                if content.len() > self.config.analysis.max_file_size {
+                    return None;
+                }
+
+                // Analyze
+                let complexity = analyze_complexity(&content, lang);
+                let docs = analyze_documentation(&content, lang);
+                let structure = analyze_structure(&content, lang);
+
+                // Update progress
+                let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                if let Some(ref pb) = progress {
+                    pb.set_position(count as u64);
+                }
+
+                Some(FileAnalysis {
+                    complexity,
+                    docs,
+                    structure,
+                })
+            })
+            .collect();
+
+        // Finish progress bar
+        if let Some(pb) = progress {
+            pb.finish_and_clear();
+            let elapsed = start.elapsed();
+            if elapsed.as_secs() >= 2 {
+                eprintln!(
+                    "Analyzed {} files in {:.1}s",
+                    total_files,
+                    elapsed.as_secs_f64()
+                );
+            }
+        }
+
+        // Aggregate results
         let mut total_complexity = ComplexityMetrics::default();
         let mut total_docs = DocumentationMetrics::default();
         let mut total_structure = StructureMetrics::default();
 
-        // Walk source files
-        for entry in WalkDir::new(self.path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-        {
-            let path = entry.path();
-            
-            // Skip excluded paths
-            let path_str = path.to_string_lossy();
-            if self.config.analysis.exclude.iter().any(|ex| path_str.contains(ex)) {
-                continue;
-            }
-
-            // Detect language
-            let lang = match Language::from_path(path) {
-                Some(l) => l,
-                None => continue,
-            };
-
-            // Read file
-            let content = match std::fs::read(path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            result.file_count += 1;
-
-            // Analyze
-            let complexity = analyze_complexity(&content, lang);
-            let docs = analyze_documentation(&content, lang);
-            let structure = analyze_structure(&content, lang);
-
-            // Aggregate
-            total_complexity = merge_complexity(total_complexity, complexity);
-            total_docs = merge_docs(total_docs, docs);
-            total_structure = merge_structure(total_structure, structure);
+        for analysis in &results {
+            total_complexity = merge_complexity(total_complexity, analysis.complexity.clone());
+            total_docs = merge_docs(total_docs, analysis.docs.clone());
+            total_structure = merge_structure(total_structure, analysis.structure.clone());
         }
 
         // Check for README
@@ -84,18 +162,25 @@ impl<'a> Collector<'a> {
         total_docs.readme_size = readme_size;
 
         // Test metrics
-        result.tests = analyze_tests(self.path, &self.config.analysis.exclude);
+        let tests = analyze_tests(self.path, &self.config.analysis.exclude);
 
         // Git metrics
-        result.git = analyze_git(self.path)?;
-        result.churn = analyze_churn(self.path, 30)?;
+        let git = analyze_git(self.path)?;
+        let churn = analyze_churn(self.path, 30)?;
 
-        result.complexity = total_complexity;
-        result.documentation = total_docs;
-        result.total_lines = total_structure.total_lines;
-        result.structure = total_structure;
+        // Save total_lines before moving total_structure
+        let total_lines = total_structure.total_lines;
 
-        Ok(result)
+        Ok(AnalysisResult {
+            complexity: total_complexity,
+            documentation: total_docs,
+            structure: total_structure,
+            tests,
+            git,
+            churn,
+            file_count: results.len(),
+            total_lines,
+        })
     }
 }
 
@@ -105,11 +190,21 @@ fn merge_complexity(a: ComplexityMetrics, b: ComplexityMetrics) -> ComplexityMet
     ComplexityMetrics {
         total_functions: total_funcs,
         max: a.max.max(b.max),
-        min: if a.min == 0 { b.min } else if b.min == 0 { a.min } else { a.min.min(b.min) },
-        average: if total_funcs > 0 { total as f64 / total_funcs as f64 } else { 0.0 },
+        min: if a.min == 0 {
+            b.min
+        } else if b.min == 0 {
+            a.min
+        } else {
+            a.min.min(b.min)
+        },
+        average: if total_funcs > 0 {
+            total as f64 / total_funcs as f64
+        } else {
+            0.0
+        },
         total,
         functions_over_threshold: a.functions_over_threshold + b.functions_over_threshold,
-        threshold: a.threshold, // Use same threshold
+        threshold: a.threshold,
     }
 }
 
@@ -126,7 +221,11 @@ fn merge_docs(a: DocumentationMetrics, b: DocumentationMetrics) -> Documentation
         total_items,
         has_readme: a.has_readme || b.has_readme,
         readme_size: a.readme_size.max(b.readme_size),
-        comment_density: (a.comment_density + b.comment_density) / 2.0,
+        comment_density: if a.comment_density > 0.0 && b.comment_density > 0.0 {
+            (a.comment_density + b.comment_density) / 2.0
+        } else {
+            a.comment_density.max(b.comment_density)
+        },
     }
 }
 
@@ -163,7 +262,7 @@ mod tests {
     fn test_collector_empty_dir() {
         let dir = TempDir::new().unwrap();
         let config = Config::default();
-        let collector = Collector::new(&config, dir.path());
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
         let result = collector.analyze().unwrap();
         assert_eq!(result.file_count, 0);
     }
@@ -172,9 +271,9 @@ mod tests {
     fn test_collector_with_files() {
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join("main.ts"), "function hello() {}").unwrap();
-        
+
         let config = Config::default();
-        let collector = Collector::new(&config, dir.path());
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
         let result = collector.analyze().unwrap();
         assert_eq!(result.file_count, 1);
     }
@@ -186,9 +285,39 @@ mod tests {
         std::fs::create_dir(&nm).unwrap();
         std::fs::write(nm.join("dep.ts"), "function dep() {}").unwrap();
         std::fs::write(dir.path().join("main.ts"), "function main() {}").unwrap();
-        
+
         let config = Config::default();
-        let collector = Collector::new(&config, dir.path());
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 1);
+    }
+
+    #[test]
+    fn test_collector_respects_gitignore() {
+        use std::process::Command;
+
+        let dir = TempDir::new().unwrap();
+
+        // Initialize git repo (required for ignore crate to use .gitignore)
+        Command::new("git")
+            .args(["init"])
+            .current_dir(dir.path())
+            .output()
+            .expect("git init failed");
+
+        // Create .gitignore
+        std::fs::write(dir.path().join(".gitignore"), "ignored/\n").unwrap();
+
+        // Create ignored directory
+        let ignored = dir.path().join("ignored");
+        std::fs::create_dir(&ignored).unwrap();
+        std::fs::write(ignored.join("skip.ts"), "function skip() {}").unwrap();
+
+        // Create normal file
+        std::fs::write(dir.path().join("main.ts"), "function main() {}").unwrap();
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
         let result = collector.analyze().unwrap();
         assert_eq!(result.file_count, 1);
     }
@@ -249,9 +378,9 @@ mod tests {
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join("README.md"), "# Test").unwrap();
         std::fs::write(dir.path().join("main.ts"), "function main() {}").unwrap();
-        
+
         let config = Config::default();
-        let collector = Collector::new(&config, dir.path());
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
         let result = collector.analyze().unwrap();
         assert!(result.documentation.has_readme);
     }
@@ -261,10 +390,29 @@ mod tests {
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join("a.ts"), "function a() { if (x) {} }").unwrap();
         std::fs::write(dir.path().join("b.ts"), "function b() {}").unwrap();
-        
+
         let config = Config::default();
-        let collector = Collector::new(&config, dir.path());
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
         let result = collector.analyze().unwrap();
         assert_eq!(result.complexity.total_functions, 2);
+    }
+
+    #[test]
+    fn test_collector_parallel_processing() {
+        let dir = TempDir::new().unwrap();
+        // Create multiple files to test parallel processing
+        for i in 0..10 {
+            std::fs::write(
+                dir.path().join(format!("file{}.ts", i)),
+                format!("function f{}() {{ if (x) {{}} }}", i),
+            )
+            .unwrap();
+        }
+
+        let config = Config::default();
+        let collector = Collector::new(&config, dir.path()).with_progress(false);
+        let result = collector.analyze().unwrap();
+        assert_eq!(result.file_count, 10);
+        assert_eq!(result.complexity.total_functions, 10);
     }
 }

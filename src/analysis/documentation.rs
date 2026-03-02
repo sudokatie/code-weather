@@ -26,21 +26,12 @@ pub fn analyze_documentation(source: &[u8], lang: Language) -> DocumentationMetr
     let mut total = 0;
     let mut comment_lines = 0;
 
-    analyze_docs_node(
-        tree.root_node(),
-        source,
-        lang,
-        &mut documented,
-        &mut total,
-    );
+    analyze_docs_node(tree.root_node(), source, lang, &mut documented, &mut total);
     count_comments(tree.root_node(), source, &mut comment_lines);
 
     // Count non-empty code lines
     let source_str = std::str::from_utf8(source).unwrap_or("");
-    let code_lines = source_str
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .count();
+    let code_lines = source_str.lines().filter(|l| !l.trim().is_empty()).count();
 
     let coverage = if total > 0 {
         (documented as f64 / total as f64) * 100.0
@@ -158,8 +149,7 @@ fn has_python_docstring(node: &tree_sitter::Node, source: &[u8]) -> bool {
                             if expr.kind() == "string" {
                                 let text = expr.utf8_text(source).unwrap_or("");
                                 // Check for triple-quoted string
-                                return text.starts_with("\"\"\"")
-                                    || text.starts_with("'''");
+                                return text.starts_with("\"\"\"") || text.starts_with("'''");
                             }
                         }
                     }
@@ -185,7 +175,13 @@ fn count_comments(node: tree_sitter::Node, source: &[u8], count: &mut usize) {
 }
 
 pub fn check_readme(dir: &std::path::Path) -> (bool, usize) {
-    let readme_names = ["README.md", "README.txt", "README", "readme.md", "Readme.md"];
+    let readme_names = [
+        "README.md",
+        "README.txt",
+        "README",
+        "readme.md",
+        "Readme.md",
+    ];
     for name in readme_names {
         let path = dir.join(name);
         if path.exists() {

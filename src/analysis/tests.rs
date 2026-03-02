@@ -20,7 +20,7 @@ pub fn analyze_tests(dir: &Path, exclude: &[String]) -> TestMetrics {
         .filter(|e| e.file_type().is_file())
     {
         let path = entry.path();
-        
+
         // Skip excluded paths
         let path_str = path.to_string_lossy();
         if exclude.iter().any(|ex| path_str.contains(ex)) {
@@ -29,7 +29,7 @@ pub fn analyze_tests(dir: &Path, exclude: &[String]) -> TestMetrics {
 
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             let filename = path.file_name().and_then(|f| f.to_str()).unwrap_or("");
-            
+
             if is_source_file(ext) {
                 if is_test_file(filename, ext) {
                     test_files += 1;
@@ -68,7 +68,7 @@ fn is_source_file(ext: &str) -> bool {
 
 fn is_test_file(filename: &str, ext: &str) -> bool {
     let name_lower = filename.to_lowercase();
-    
+
     // Test file patterns
     match ext.to_lowercase().as_str() {
         "py" => {
@@ -87,9 +87,7 @@ fn is_test_file(filename: &str, ext: &str) -> bool {
                 || name_lower.ends_with(".spec.js")
                 || name_lower.ends_with(".spec.jsx")
         }
-        "go" => {
-            name_lower.ends_with("_test.go")
-        }
+        "go" => name_lower.ends_with("_test.go"),
         "rs" => {
             // Rust tests are typically in mod tests or in tests/ dir
             // but we can detect test files by name convention
@@ -235,10 +233,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let coverage_dir = dir.path().join("coverage");
         std::fs::create_dir(&coverage_dir).unwrap();
-        std::fs::write(
-            coverage_dir.join("lcov.info"),
-            "LF:100\nLH:80\n",
-        ).unwrap();
+        std::fs::write(coverage_dir.join("lcov.info"), "LF:100\nLH:80\n").unwrap();
 
         let (has_report, pct) = find_coverage(dir.path());
         assert!(has_report);
@@ -251,7 +246,8 @@ mod tests {
         std::fs::write(
             dir.path().join("coverage.json"),
             r#"{"total": {"lines": {"pct": 75.5}}}"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let (has_report, pct) = find_coverage(dir.path());
         assert!(has_report);

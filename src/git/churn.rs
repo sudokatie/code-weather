@@ -31,7 +31,7 @@ pub fn analyze_churn(path: &Path, days: i64) -> Result<ChurnMetrics, Error> {
     };
 
     let cutoff = Utc::now() - Duration::days(days);
-    
+
     let mut files_changed: HashSet<String> = HashSet::new();
     let mut total_additions: usize = 0;
     let mut total_deletions: usize = 0;
@@ -41,7 +41,7 @@ pub fn analyze_churn(path: &Path, days: i64) -> Result<ChurnMetrics, Error> {
     revwalk.push_head().ok();
 
     let mut prev_tree = None;
-    
+
     for oid in revwalk.flatten() {
         let commit = match repo.find_commit(oid) {
             Ok(c) => c,
@@ -61,7 +61,7 @@ pub fn analyze_churn(path: &Path, days: i64) -> Result<ChurnMetrics, Error> {
         if let Some(ref prev) = prev_tree {
             let mut opts = DiffOptions::new();
             opts.ignore_submodules(true);
-            
+
             // Diff from this (older) commit to prev (newer) commit - shows what was added/deleted
             if let Ok(diff) = repo.diff_tree_to_tree(Some(&tree), Some(prev), Some(&mut opts)) {
                 // Get changed files
@@ -78,7 +78,8 @@ pub fn analyze_churn(path: &Path, days: i64) -> Result<ChurnMetrics, Error> {
                     None,
                     None,
                     None,
-                ).ok();
+                )
+                .ok();
 
                 // Get line stats
                 if let Ok(stats) = diff.stats() {
@@ -101,7 +102,7 @@ pub fn analyze_churn(path: &Path, days: i64) -> Result<ChurnMetrics, Error> {
     };
 
     let net_change = total_additions as i64 - total_deletions as i64;
-    
+
     let trend = determine_trend(total_additions, total_deletions, files_changed.len());
 
     Ok(ChurnMetrics {
@@ -122,7 +123,7 @@ fn determine_trend(additions: usize, deletions: usize, files_changed: usize) -> 
 
     let net = additions as i64 - deletions as i64;
     let total = additions + deletions;
-    
+
     // High churn with net zero = refactoring
     if files_changed > 0 && net.abs() < (total as i64 / 10) {
         return ChurnTrend::Refactoring;
@@ -143,11 +144,8 @@ fn determine_trend(additions: usize, deletions: usize, files_changed: usize) -> 
 
 fn is_binary_path(path: &Path) -> bool {
     let binary_extensions = [
-        "png", "jpg", "jpeg", "gif", "ico", "svg",
-        "woff", "woff2", "ttf", "eot",
-        "pdf", "zip", "tar", "gz",
-        "exe", "dll", "so", "dylib",
-        "mp3", "mp4", "wav", "avi",
+        "png", "jpg", "jpeg", "gif", "ico", "svg", "woff", "woff2", "ttf", "eot", "pdf", "zip",
+        "tar", "gz", "exe", "dll", "so", "dylib", "mp3", "mp4", "wav", "avi",
     ];
 
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -159,7 +157,7 @@ fn is_binary_path(path: &Path) -> bool {
 
 fn count_source_files(repo: &Repository) -> usize {
     let source_extensions = ["ts", "tsx", "js", "jsx", "py", "rs", "go"];
-    
+
     if let Ok(head) = repo.head() {
         if let Ok(tree) = head.peel_to_tree() {
             let mut count = 0;
@@ -172,7 +170,8 @@ fn count_source_files(repo: &Repository) -> usize {
                     }
                 }
                 git2::TreeWalkResult::Ok
-            }).ok();
+            })
+            .ok();
             return count;
         }
     }

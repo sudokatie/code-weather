@@ -1,4 +1,4 @@
-use super::{Condition, Temperature, Humidity, Wind, Visibility};
+use super::{Condition, Humidity, Temperature, Visibility, Wind};
 
 /// Full weather report combining all metrics
 #[derive(Debug, Clone)]
@@ -35,7 +35,14 @@ impl WeatherReport {
         sunny_threshold: u8,
         cloudy_threshold: u8,
     ) -> Self {
-        let condition = determine_condition(&temperature, &humidity, &wind, &visibility, sunny_threshold, cloudy_threshold);
+        let condition = determine_condition(
+            &temperature,
+            &humidity,
+            &wind,
+            &visibility,
+            sunny_threshold,
+            cloudy_threshold,
+        );
         Self {
             condition,
             temperature,
@@ -90,7 +97,8 @@ fn determine_condition(
     let health = ((humidity.percent as u16 + visibility.miles as u16 * 10) / 2) as u8;
 
     // Cloudy if below cloudy threshold
-    if health < cloudy_threshold || humidity.percent < 60 || visibility.miles < 7 || wind.speed > 15 {
+    if health < cloudy_threshold || humidity.percent < 60 || visibility.miles < 7 || wind.speed > 15
+    {
         return Condition::Cloudy;
     }
 
@@ -113,7 +121,10 @@ mod tests {
     }
 
     fn make_humidity(pct: u8) -> Humidity {
-        Humidity { percent: pct, is_estimated: false }
+        Humidity {
+            percent: pct,
+            is_estimated: false,
+        }
     }
 
     fn make_wind(speed: u8) -> Wind {
@@ -126,89 +137,57 @@ mod tests {
 
     #[test]
     fn test_frozen_abandoned() {
-        let report = WeatherReport::new(
-            make_temp(20),
-            make_humidity(80),
-            make_wind(5),
-            make_vis(10),
-        );
+        let report =
+            WeatherReport::new(make_temp(20), make_humidity(80), make_wind(5), make_vis(10));
         assert_eq!(report.condition, Condition::Frozen);
     }
 
     #[test]
     fn test_foggy_low_visibility() {
-        let report = WeatherReport::new(
-            make_temp(70),
-            make_humidity(80),
-            make_wind(5),
-            make_vis(1),
-        );
+        let report =
+            WeatherReport::new(make_temp(70), make_humidity(80), make_wind(5), make_vis(1));
         assert_eq!(report.condition, Condition::Foggy);
     }
 
     #[test]
     fn test_stormy_high_churn_low_coverage() {
-        let report = WeatherReport::new(
-            make_temp(70),
-            make_humidity(30),
-            make_wind(50),
-            make_vis(8),
-        );
+        let report =
+            WeatherReport::new(make_temp(70), make_humidity(30), make_wind(50), make_vis(8));
         assert_eq!(report.condition, Condition::Stormy);
     }
 
     #[test]
     fn test_rainy_moderate_issues() {
-        let report = WeatherReport::new(
-            make_temp(70),
-            make_humidity(45),
-            make_wind(30),
-            make_vis(6),
-        );
+        let report =
+            WeatherReport::new(make_temp(70), make_humidity(45), make_wind(30), make_vis(6));
         assert_eq!(report.condition, Condition::Rainy);
     }
 
     #[test]
     fn test_cloudy_some_concerns() {
-        let report = WeatherReport::new(
-            make_temp(70),
-            make_humidity(55),
-            make_wind(10),
-            make_vis(6),
-        );
+        let report =
+            WeatherReport::new(make_temp(70), make_humidity(55), make_wind(10), make_vis(6));
         assert_eq!(report.condition, Condition::Cloudy);
     }
 
     #[test]
     fn test_partly_cloudy_minor() {
-        let report = WeatherReport::new(
-            make_temp(70),
-            make_humidity(70),
-            make_wind(10),
-            make_vis(8),
-        );
+        let report =
+            WeatherReport::new(make_temp(70), make_humidity(70), make_wind(10), make_vis(8));
         assert_eq!(report.condition, Condition::PartlyCloudy);
     }
 
     #[test]
     fn test_sunny_all_good() {
-        let report = WeatherReport::new(
-            make_temp(80),
-            make_humidity(85),
-            make_wind(5),
-            make_vis(10),
-        );
+        let report =
+            WeatherReport::new(make_temp(80), make_humidity(85), make_wind(5), make_vis(10));
         assert_eq!(report.condition, Condition::Sunny);
     }
 
     #[test]
     fn test_summary_format() {
-        let report = WeatherReport::new(
-            make_temp(75),
-            make_humidity(80),
-            make_wind(10),
-            make_vis(8),
-        );
+        let report =
+            WeatherReport::new(make_temp(75), make_humidity(80), make_wind(10), make_vis(8));
         let summary = report.summary();
         assert!(summary.contains("75°F"));
         assert!(summary.contains("80%"));

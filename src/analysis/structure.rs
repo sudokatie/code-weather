@@ -39,10 +39,7 @@ pub fn analyze_structure(source: &[u8], lang: Language) -> StructureMetrics {
 
     // Count non-empty lines
     let source_str = std::str::from_utf8(source).unwrap_or("");
-    let total_lines = source_str
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .count();
+    let total_lines = source_str.lines().filter(|l| !l.trim().is_empty()).count();
 
     let function_count = function_lengths.len();
     let avg_function_length = if function_count > 0 {
@@ -152,10 +149,7 @@ fn is_nesting_node(node: &tree_sitter::Node, lang: Language) -> bool {
         Language::Go => {
             matches!(
                 kind,
-                "if_statement"
-                    | "for_statement"
-                    | "switch_statement"
-                    | "select_statement"
+                "if_statement" | "for_statement" | "switch_statement" | "select_statement"
             )
         }
     }
@@ -192,7 +186,10 @@ fn count_function_lines(node: &tree_sitter::Node, source: &[u8]) -> usize {
 
     // Count non-empty lines within the function
     let text = node.utf8_text(source).unwrap_or("");
-    text.lines().filter(|l| !l.trim().is_empty()).count().max(line_count)
+    text.lines()
+        .filter(|l| !l.trim().is_empty())
+        .count()
+        .max(line_count)
 }
 
 fn count_parameters(node: &tree_sitter::Node, lang: Language) -> usize {

@@ -1,10 +1,12 @@
 use crate::weather::WeatherReport;
 use crate::{Advisory, RegionalForecast};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct JsonReport {
     pub path: String,
+    pub timestamp: DateTime<Utc>,
     pub condition: String,
     pub priority: u8,
     pub temperature: JsonTemperature,
@@ -77,6 +79,7 @@ impl JsonReport {
     ) -> Self {
         Self {
             path: path.to_string(),
+            timestamp: Utc::now(),
             condition: format!("{}", report.condition),
             priority: report.condition.priority(),
             temperature: JsonTemperature {
@@ -103,16 +106,22 @@ impl JsonReport {
                 description: report.visibility.description().to_string(),
             },
             summary: report.summary(),
-            regions: regions.iter().map(|r| JsonRegion {
-                path: r.path.clone(),
-                condition: format!("{}", r.condition),
-                summary: r.summary.clone(),
-            }).collect(),
-            advisories: advisories.iter().map(|a| JsonAdvisory {
-                severity: format!("{}", a.severity),
-                region: a.region.clone(),
-                message: a.message.clone(),
-            }).collect(),
+            regions: regions
+                .iter()
+                .map(|r| JsonRegion {
+                    path: r.path.clone(),
+                    condition: format!("{}", r.condition),
+                    summary: r.summary.clone(),
+                })
+                .collect(),
+            advisories: advisories
+                .iter()
+                .map(|a| JsonAdvisory {
+                    severity: format!("{}", a.severity),
+                    region: a.region.clone(),
+                    message: a.message.clone(),
+                })
+                .collect(),
         }
     }
 
@@ -128,12 +137,15 @@ impl JsonReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::weather::{Temperature, Humidity, Wind, WindDirection, Visibility};
+    use crate::weather::{Humidity, Temperature, Visibility, Wind, WindDirection};
 
     fn make_report() -> WeatherReport {
         WeatherReport::new(
             Temperature::new(75),
-            Humidity { percent: 80, is_estimated: false },
+            Humidity {
+                percent: 80,
+                is_estimated: false,
+            },
             Wind::new(10, WindDirection::Calm),
             Visibility::new(8),
         )
@@ -156,6 +168,7 @@ mod tests {
         let s = result.unwrap();
         assert!(s.contains("temperature"));
         assert!(s.contains("humidity"));
+        assert!(s.contains("timestamp"));
     }
 
     #[test]

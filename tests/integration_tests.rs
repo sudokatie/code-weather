@@ -42,13 +42,14 @@ fn test_forecast_nonexistent_path() {
 #[test]
 fn test_forecast_json_output() {
     let dir = TempDir::new().unwrap();
-    
+
     // Create a simple Rust file
     fs::write(
         dir.path().join("main.rs"),
         "fn main() { println!(\"hello\"); }\n",
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     code_weather()
         .args(["forecast", "--format", "json"])
         .arg(dir.path())
@@ -62,12 +63,13 @@ fn test_forecast_json_output() {
 #[test]
 fn test_forecast_markdown_output() {
     let dir = TempDir::new().unwrap();
-    
+
     fs::write(
         dir.path().join("lib.py"),
         "def hello():\n    return 'hello'\n",
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     code_weather()
         .args(["forecast", "--format", "markdown"])
         .arg(dir.path())
@@ -81,15 +83,15 @@ fn test_forecast_markdown_output() {
 #[test]
 fn test_init_creates_config() {
     let dir = TempDir::new().unwrap();
-    
+
     code_weather()
         .arg("init")
         .current_dir(dir.path())
         .assert()
         .success();
-    
+
     assert!(dir.path().join(".code-weather.toml").exists());
-    
+
     let content = fs::read_to_string(dir.path().join(".code-weather.toml")).unwrap();
     assert!(content.contains("[thresholds]"));
 }
@@ -100,7 +102,7 @@ fn test_init_no_overwrite() {
     let dir = TempDir::new().unwrap();
     let config = dir.path().join(".code-weather.toml");
     fs::write(&config, "# existing").unwrap();
-    
+
     code_weather()
         .arg("init")
         .current_dir(dir.path())
@@ -114,13 +116,13 @@ fn test_init_force_overwrite() {
     let dir = TempDir::new().unwrap();
     let config = dir.path().join(".code-weather.toml");
     fs::write(&config, "# old").unwrap();
-    
+
     code_weather()
         .args(["init", "--force"])
         .current_dir(dir.path())
         .assert()
         .success();
-    
+
     let content = fs::read_to_string(&config).unwrap();
     assert!(content.contains("[thresholds]"));
 }
@@ -152,12 +154,16 @@ fn test_explain_specific() {
 #[test]
 fn test_multi_language_repo() {
     let dir = TempDir::new().unwrap();
-    
-    fs::write(dir.path().join("app.ts"), "export function greet(): string { return 'hi'; }").unwrap();
+
+    fs::write(
+        dir.path().join("app.ts"),
+        "export function greet(): string { return 'hi'; }",
+    )
+    .unwrap();
     fs::write(dir.path().join("lib.py"), "def helper():\n    pass").unwrap();
     fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
     fs::write(dir.path().join("util.go"), "package main\nfunc main() {}").unwrap();
-    
+
     code_weather()
         .args(["forecast", "--format", "json"])
         .arg(dir.path())
@@ -170,7 +176,7 @@ fn test_multi_language_repo() {
 fn test_verbose_output() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("test.py"), "def foo(): pass").unwrap();
-    
+
     // Verbose flag should not break the command
     code_weather()
         .args(["-v", "forecast"])

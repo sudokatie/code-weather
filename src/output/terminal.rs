@@ -1,4 +1,4 @@
-use crate::weather::{WeatherReport, Condition};
+use crate::weather::{Condition, WeatherReport};
 use crate::{Advisory, AdvisorySeverity, RegionalForecast};
 use crossterm::style::{Color, Stylize};
 use std::io::{self, Write};
@@ -66,18 +66,18 @@ impl TerminalOutput {
     fn render_advisories(&self, w: &mut impl Write, advisories: &[Advisory]) -> io::Result<()> {
         writeln!(w, "  Advisories")?;
         writeln!(w, "  {}", "─".repeat(40))?;
-        
+
         for advisory in advisories {
             let severity_str = match advisory.severity {
                 AdvisorySeverity::Watch => "⚠️  WATCH",
                 AdvisorySeverity::Warning => "🚨 WARNING",
             };
-            
+
             let color = match advisory.severity {
                 AdvisorySeverity::Watch => Color::Yellow,
                 AdvisorySeverity::Warning => Color::Red,
             };
-            
+
             if self.no_color {
                 if let Some(ref region) = advisory.region {
                     writeln!(w, "  {} [{}]: {}", severity_str, region, advisory.message)?;
@@ -85,7 +85,7 @@ impl TerminalOutput {
                     writeln!(w, "  {}: {}", severity_str, advisory.message)?;
                 }
             } else {
-                let styled = format!("{}", severity_str).with(color);
+                let styled = severity_str.with(color);
                 if let Some(ref region) = advisory.region {
                     writeln!(w, "  {} [{}]: {}", styled, region, advisory.message)?;
                 } else {
@@ -93,26 +93,29 @@ impl TerminalOutput {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     fn render_regions(&self, w: &mut impl Write, regions: &[RegionalForecast]) -> io::Result<()> {
         writeln!(w, "  Regional Breakdown")?;
         writeln!(w, "  {}", "─".repeat(40))?;
-        
+
         for region in regions {
             let icon = region.condition.icon();
             if self.no_color {
                 writeln!(w, "  {} {} - {}", icon, region.path, region.summary)?;
             } else {
-                writeln!(w, "  {} {} - {}", 
+                writeln!(
+                    w,
+                    "  {} {} - {}",
                     icon,
                     region.path.clone().with(region.condition.color()),
-                    region.summary)?;
+                    region.summary
+                )?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -139,9 +142,17 @@ impl TerminalOutput {
     }
 
     fn render_stats(&self, w: &mut impl Write, report: &WeatherReport) -> io::Result<()> {
-        let temp = format!("{}°F ({}°C)", report.temperature.fahrenheit, report.temperature.celsius());
+        let temp = format!(
+            "{}°F ({}°C)",
+            report.temperature.fahrenheit,
+            report.temperature.celsius()
+        );
         let humidity = report.humidity.display();
-        let wind = format!("{} mph {}", report.wind.speed, report.wind.direction_description());
+        let wind = format!(
+            "{} mph {}",
+            report.wind.speed,
+            report.wind.direction_description()
+        );
         let visibility = format!("{} miles", report.visibility.miles);
 
         writeln!(w, "  Temperature:  {}", temp)?;
@@ -176,12 +187,15 @@ pub fn colorize(text: &str, color: Color, no_color: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::weather::{Temperature, Humidity, Wind, WindDirection, Visibility};
+    use crate::weather::{Humidity, Temperature, Visibility, Wind, WindDirection};
 
     fn make_report() -> WeatherReport {
         WeatherReport::new(
             Temperature::new(75),
-            Humidity { percent: 80, is_estimated: false },
+            Humidity {
+                percent: 80,
+                is_estimated: false,
+            },
             Wind::new(10, WindDirection::Calm),
             Visibility::new(8),
         )

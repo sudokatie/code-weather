@@ -6,7 +6,9 @@ pub struct Visibility {
 
 impl Visibility {
     pub fn new(miles: u8) -> Self {
-        Self { miles: miles.min(10) }
+        Self {
+            miles: miles.min(10),
+        }
     }
 
     pub fn description(&self) -> &'static str {
@@ -115,7 +117,7 @@ mod tests {
         let without = calculate_visibility(50.0, false, 0, 0.1);
         let with_small = calculate_visibility(50.0, true, 100, 0.1);
         let with_large = calculate_visibility(50.0, true, 3000, 0.1);
-        
+
         assert!(with_small.miles > without.miles);
         assert!(with_large.miles > with_small.miles);
     }

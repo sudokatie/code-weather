@@ -1,6 +1,6 @@
 pub mod schema;
 
-pub use schema::{Config, ThresholdConfig, AnalysisConfig, DisplayConfig};
+pub use schema::{AnalysisConfig, Config, DisplayConfig, ThresholdConfig};
 
 use crate::error::Result;
 use std::path::{Path, PathBuf};
@@ -14,7 +14,7 @@ pub fn load(explicit_path: Option<&Path>) -> Result<Config> {
         let config: Config = toml::from_str(&content)?;
         return Ok(config);
     }
-    
+
     if let Ok(cwd) = std::env::current_dir() {
         if let Some(path) = find_config_file(&cwd) {
             let content = std::fs::read_to_string(&path)?;
@@ -22,7 +22,7 @@ pub fn load(explicit_path: Option<&Path>) -> Result<Config> {
             return Ok(config);
         }
     }
-    
+
     Ok(Config::default())
 }
 
@@ -53,7 +53,8 @@ cloudy_coverage = 50
 
 [analysis]
 exclude = ["node_modules", "vendor", "target", ".git"]
-"#.to_string()
+"#
+        .to_string()
     }
 }
 
@@ -61,50 +62,50 @@ exclude = ["node_modules", "vendor", "target", ".git"]
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    
+
     #[test]
     fn test_find_config_in_current() {
         let dir = TempDir::new().unwrap();
         let config_path = dir.path().join(".code-weather.toml");
         std::fs::write(&config_path, "[thresholds]").unwrap();
-        
+
         let found = find_config_file(dir.path());
         assert_eq!(found, Some(config_path));
     }
-    
+
     #[test]
     fn test_find_config_in_parent() {
         let parent = TempDir::new().unwrap();
         let child = parent.path().join("subdir");
         std::fs::create_dir(&child).unwrap();
-        
+
         let config_path = parent.path().join(".code-weather.toml");
         std::fs::write(&config_path, "[thresholds]").unwrap();
-        
+
         let found = find_config_file(&child);
         assert_eq!(found, Some(config_path));
     }
-    
+
     #[test]
     fn test_find_config_not_found() {
         let dir = TempDir::new().unwrap();
         let found = find_config_file(dir.path());
         assert!(found.is_none());
     }
-    
+
     #[test]
     fn test_generate_minimal_config() {
         let config = generate_config(false);
         assert!(config.contains("[thresholds]"));
         assert!(config.contains("sunny_coverage"));
     }
-    
+
     #[test]
     fn test_generate_full_config() {
         let config = generate_config(true);
         assert!(config.contains("thresholds"));
     }
-    
+
     #[test]
     fn test_load_default() {
         let config = load(None).unwrap();

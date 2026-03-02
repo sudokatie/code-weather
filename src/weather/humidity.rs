@@ -14,7 +14,6 @@ impl Humidity {
     }
 
     pub fn description(&self) -> &'static str {
-        
         (match self.percent {
             80..=100 => "Humid - excellent test coverage",
             60..=79 => "Comfortable - good test coverage",
@@ -35,16 +34,17 @@ impl Humidity {
     }
 
     pub fn display(&self) -> String {
-        let suffix = if self.is_estimated { " (estimated)" } else { "" };
+        let suffix = if self.is_estimated {
+            " (estimated)"
+        } else {
+            ""
+        };
         format!("{}%{}", self.percent, suffix)
     }
 }
 
 /// Calculate humidity from test coverage metrics
-pub fn calculate_humidity(
-    actual_coverage: Option<f64>,
-    test_to_source_ratio: f64,
-) -> Humidity {
+pub fn calculate_humidity(actual_coverage: Option<f64>, test_to_source_ratio: f64) -> Humidity {
     if let Some(coverage) = actual_coverage {
         return Humidity::new(coverage, false);
     }

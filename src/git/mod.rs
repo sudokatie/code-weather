@@ -1,5 +1,5 @@
 pub mod churn;
 pub mod history;
 
-pub use churn::{ChurnMetrics, ChurnTrend, analyze_churn};
-pub use history::{GitMetrics, analyze_git};
+pub use churn::{analyze_churn, ChurnMetrics, ChurnTrend};
+pub use history::{analyze_git, GitMetrics};

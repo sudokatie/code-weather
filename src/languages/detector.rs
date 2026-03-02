@@ -17,7 +17,7 @@ impl Language {
             .and_then(|ext| ext.to_str())
             .and_then(Self::from_extension)
     }
-    
+
     /// Detect language from file extension
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_lowercase().as_str() {
@@ -29,7 +29,7 @@ impl Language {
             _ => None,
         }
     }
-    
+
     /// Get all supported extensions for this language
     pub fn extensions(&self) -> &'static [&'static str] {
         match self {
@@ -40,7 +40,7 @@ impl Language {
             Language::Go => &["go"],
         }
     }
-    
+
     /// Get display name
     pub fn name(&self) -> &'static str {
         match self {
@@ -51,7 +51,7 @@ impl Language {
             Language::Go => "Go",
         }
     }
-    
+
     /// Get tree-sitter language parser
     pub fn tree_sitter_language(&self) -> tree_sitter::Language {
         match self {
@@ -62,7 +62,7 @@ impl Language {
             Language::Go => tree_sitter_go::language(),
         }
     }
-    
+
     /// Get all supported languages
     pub fn all() -> &'static [Language] {
         &[
@@ -84,55 +84,85 @@ impl std::fmt::Display for Language {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_typescript_extensions() {
-        assert_eq!(Language::from_path(Path::new("file.ts")), Some(Language::TypeScript));
-        assert_eq!(Language::from_path(Path::new("file.tsx")), Some(Language::TypeScript));
-        assert_eq!(Language::from_path(Path::new("file.mts")), Some(Language::TypeScript));
+        assert_eq!(
+            Language::from_path(Path::new("file.ts")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(Path::new("file.tsx")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(Path::new("file.mts")),
+            Some(Language::TypeScript)
+        );
     }
-    
+
     #[test]
     fn test_javascript_extensions() {
-        assert_eq!(Language::from_path(Path::new("file.js")), Some(Language::JavaScript));
-        assert_eq!(Language::from_path(Path::new("file.jsx")), Some(Language::JavaScript));
-        assert_eq!(Language::from_path(Path::new("file.mjs")), Some(Language::JavaScript));
+        assert_eq!(
+            Language::from_path(Path::new("file.js")),
+            Some(Language::JavaScript)
+        );
+        assert_eq!(
+            Language::from_path(Path::new("file.jsx")),
+            Some(Language::JavaScript)
+        );
+        assert_eq!(
+            Language::from_path(Path::new("file.mjs")),
+            Some(Language::JavaScript)
+        );
     }
-    
+
     #[test]
     fn test_python_extensions() {
-        assert_eq!(Language::from_path(Path::new("file.py")), Some(Language::Python));
-        assert_eq!(Language::from_path(Path::new("file.pyi")), Some(Language::Python));
+        assert_eq!(
+            Language::from_path(Path::new("file.py")),
+            Some(Language::Python)
+        );
+        assert_eq!(
+            Language::from_path(Path::new("file.pyi")),
+            Some(Language::Python)
+        );
     }
-    
+
     #[test]
     fn test_rust_extension() {
-        assert_eq!(Language::from_path(Path::new("file.rs")), Some(Language::Rust));
+        assert_eq!(
+            Language::from_path(Path::new("file.rs")),
+            Some(Language::Rust)
+        );
     }
-    
+
     #[test]
     fn test_go_extension() {
-        assert_eq!(Language::from_path(Path::new("file.go")), Some(Language::Go));
+        assert_eq!(
+            Language::from_path(Path::new("file.go")),
+            Some(Language::Go)
+        );
     }
-    
+
     #[test]
     fn test_unknown_extension() {
         assert_eq!(Language::from_path(Path::new("file.txt")), None);
         assert_eq!(Language::from_path(Path::new("file.md")), None);
     }
-    
+
     #[test]
     fn test_no_extension() {
         assert_eq!(Language::from_path(Path::new("Makefile")), None);
     }
-    
+
     #[test]
     fn test_case_insensitive() {
         assert_eq!(Language::from_extension("TS"), Some(Language::TypeScript));
         assert_eq!(Language::from_extension("PY"), Some(Language::Python));
         assert_eq!(Language::from_extension("RS"), Some(Language::Rust));
     }
-    
+
     #[test]
     fn test_tree_sitter_languages() {
         // Verify they don't panic
@@ -142,13 +172,13 @@ mod tests {
         let _ = Language::Rust.tree_sitter_language();
         let _ = Language::Go.tree_sitter_language();
     }
-    
+
     #[test]
     fn test_display() {
         assert_eq!(format!("{}", Language::TypeScript), "TypeScript");
         assert_eq!(format!("{}", Language::Python), "Python");
     }
-    
+
     #[test]
     fn test_all_languages() {
         let all = Language::all();

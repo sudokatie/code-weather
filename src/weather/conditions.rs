@@ -12,16 +12,17 @@ pub enum Condition {
 }
 
 impl Condition {
-    /// Priority for condition (lower = better)
+    /// Priority for condition (higher = worse, per SPECS.md Section 3.2)
+    /// Order: Stormy > Frozen > Rainy > Foggy > Cloudy > PartlyCloudy > Sunny
     pub fn priority(&self) -> u8 {
         match self {
             Self::Sunny => 0,
             Self::PartlyCloudy => 1,
             Self::Cloudy => 2,
-            Self::Rainy => 3,
-            Self::Foggy => 4,
-            Self::Stormy => 5,
-            Self::Frozen => 6,
+            Self::Foggy => 3,
+            Self::Rainy => 4,
+            Self::Frozen => 5,
+            Self::Stormy => 6,
         }
     }
 
@@ -67,54 +68,26 @@ impl Condition {
     /// ASCII art representation (3 lines)
     pub fn ascii_art(&self) -> [&'static str; 3] {
         match self {
-            Self::Sunny => [
-                "   \\   /   ",
-                "    .-.    ",
-                " - (   ) - ",
-            ],
-            Self::PartlyCloudy => [
-                "  \\  /     ",
-                " _/''.-.   ",
-                "   \\_(  ). ",
-            ],
-            Self::Cloudy => [
-                "           ",
-                "    .--.   ",
-                " .-(    ). ",
-            ],
-            Self::Rainy => [
-                "    .-.    ",
-                "   (   ).  ",
-                "  (___(__) ",
-            ],
-            Self::Stormy => [
-                "    .-.    ",
-                "   (   ).  ",
-                "  /(___)\\  ",
-            ],
-            Self::Foggy => [
-                "           ",
-                "_ - _ - _ -",
-                " _ - _ - _ ",
-            ],
-            Self::Frozen => [
-                "    *  *   ",
-                "  *    *   ",
-                "    *  *   ",
-            ],
+            Self::Sunny => ["   \\   /   ", "    .-.    ", " - (   ) - "],
+            Self::PartlyCloudy => ["  \\  /     ", " _/''.-.   ", "   \\_(  ). "],
+            Self::Cloudy => ["           ", "    .--.   ", " .-(    ). "],
+            Self::Rainy => ["    .-.    ", "   (   ).  ", "  (___(__) "],
+            Self::Stormy => ["    .-.    ", "   (   ).  ", "  /(___)\\  "],
+            Self::Foggy => ["           ", "_ - _ - _ -", " _ - _ - _ "],
+            Self::Frozen => ["    *  *   ", "  *    *   ", "    *  *   "],
         }
     }
 
-    /// All conditions ordered by priority
+    /// All conditions ordered by priority (best to worst)
     pub fn all() -> &'static [Condition] {
         &[
             Self::Sunny,
             Self::PartlyCloudy,
             Self::Cloudy,
-            Self::Rainy,
             Self::Foggy,
-            Self::Stormy,
+            Self::Rainy,
             Self::Frozen,
+            Self::Stormy,
         ]
     }
 }
@@ -161,8 +134,13 @@ mod tests {
     }
 
     #[test]
-    fn test_frozen_highest_priority() {
-        assert_eq!(Condition::Frozen.priority(), 6);
+    fn test_stormy_highest_priority() {
+        assert_eq!(Condition::Stormy.priority(), 6);
+    }
+
+    #[test]
+    fn test_frozen_second_highest_priority() {
+        assert_eq!(Condition::Frozen.priority(), 5);
     }
 
     #[test]
@@ -184,15 +162,19 @@ mod tests {
         for condition in Condition::all() {
             let art = condition.ascii_art();
             let widths: Vec<usize> = art.iter().map(|l| l.len()).collect();
-            assert!(widths.iter().all(|&w| w == widths[0]),
-                "Inconsistent width for {:?}", condition);
+            assert!(
+                widths.iter().all(|&w| w == widths[0]),
+                "Inconsistent width for {:?}",
+                condition
+            );
         }
     }
 
     #[test]
     fn test_ordering() {
         assert!(Condition::Sunny < Condition::Cloudy);
-        assert!(Condition::Cloudy < Condition::Stormy);
-        assert!(Condition::Stormy < Condition::Frozen);
+        assert!(Condition::Cloudy < Condition::Rainy);
+        assert!(Condition::Frozen < Condition::Stormy);
+        assert!(Condition::Stormy.priority() > Condition::Frozen.priority());
     }
 }

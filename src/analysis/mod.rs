@@ -5,7 +5,7 @@ pub mod structure;
 pub mod tests;
 
 pub use collector::{AnalysisResult, Collector};
-pub use complexity::{ComplexityMetrics, analyze_complexity};
-pub use documentation::{DocumentationMetrics, analyze_documentation, check_readme};
-pub use structure::{StructureMetrics, analyze_structure};
-pub use tests::{TestMetrics, analyze_tests};
+pub use complexity::{analyze_complexity, ComplexityMetrics};
+pub use documentation::{analyze_documentation, check_readme, DocumentationMetrics};
+pub use structure::{analyze_structure, StructureMetrics};
+pub use tests::{analyze_tests, TestMetrics};

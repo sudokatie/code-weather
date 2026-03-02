@@ -12,23 +12,16 @@ use cli::{Args, Command, ForecastArgs, OutputFormat};
 use error::{Error, Result};
 use output::{JsonReport, MarkdownOutput, TerminalOutput};
 use weather::{
-    calculate_humidity, calculate_temperature, calculate_visibility, calculate_wind,
-    WeatherReport,
+    calculate_humidity, calculate_temperature, calculate_visibility, calculate_wind, WeatherReport,
 };
 
 use std::path::Path;
 
 pub fn run(args: Args) -> Result<()> {
     match &args.command {
-        Some(Command::Forecast(forecast_args)) => {
-            run_forecast(&args, forecast_args)
-        }
-        Some(Command::Init(init_args)) => {
-            run_init(init_args)
-        }
-        Some(Command::Explain(explain_args)) => {
-            run_explain(explain_args)
-        }
+        Some(Command::Forecast(forecast_args)) => run_forecast(&args, forecast_args),
+        Some(Command::Init(init_args)) => run_init(init_args),
+        Some(Command::Explain(explain_args)) => run_explain(explain_args),
         None => {
             // Default to forecast in current directory
             let forecast_args = ForecastArgs {
@@ -50,7 +43,7 @@ pub fn run(args: Args) -> Result<()> {
 
 fn run_forecast(args: &Args, forecast: &cli::ForecastArgs) -> Result<()> {
     let path = &forecast.path;
-    
+
     // Validate path
     if !path.exists() {
         return Err(Error::FileNotFound(path.clone()));
@@ -99,9 +92,9 @@ fn run_forecast(args: &Args, forecast: &cli::ForecastArgs) -> Result<()> {
 
     // Create weather report with thresholds
     let report = WeatherReport::new_with_thresholds(
-        temperature, 
-        humidity, 
-        wind, 
+        temperature,
+        humidity,
+        wind,
         visibility,
         config.thresholds.sunny_coverage,
         config.thresholds.cloudy_coverage,
@@ -125,7 +118,8 @@ fn run_forecast(args: &Args, forecast: &cli::ForecastArgs) -> Result<()> {
             output.render_full(&report, &path_str, &regions, &advisories)?;
         }
         OutputFormat::Json => {
-            let json = JsonReport::from_weather_report_full(&report, &path_str, &regions, &advisories);
+            let json =
+                JsonReport::from_weather_report_full(&report, &path_str, &regions, &advisories);
             println!("{}", json.to_json()?);
         }
         OutputFormat::Markdown => {
@@ -147,8 +141,8 @@ pub struct Advisory {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AdvisorySeverity {
-    Watch,    // Storm Watch, Fog Advisory
-    Warning,  // More severe
+    Watch,   // Storm Watch, Fog Advisory
+    Warning, // More severe
 }
 
 impl std::fmt::Display for AdvisorySeverity {
@@ -168,7 +162,10 @@ pub struct RegionalForecast {
     pub summary: String,
 }
 
-fn generate_advisories(analysis: &analysis::AnalysisResult, _report: &WeatherReport) -> Vec<Advisory> {
+fn generate_advisories(
+    analysis: &analysis::AnalysisResult,
+    _report: &WeatherReport,
+) -> Vec<Advisory> {
     let mut advisories = Vec::new();
 
     // Storm watch for high complexity
@@ -176,7 +173,10 @@ fn generate_advisories(analysis: &analysis::AnalysisResult, _report: &WeatherRep
         advisories.push(Advisory {
             severity: AdvisorySeverity::Watch,
             region: None,
-            message: format!("High complexity detected (max CC: {})", analysis.complexity.max),
+            message: format!(
+                "High complexity detected (max CC: {})",
+                analysis.complexity.max
+            ),
         });
     }
 
@@ -185,7 +185,10 @@ fn generate_advisories(analysis: &analysis::AnalysisResult, _report: &WeatherRep
         advisories.push(Advisory {
             severity: AdvisorySeverity::Watch,
             region: None,
-            message: format!("Low documentation coverage ({:.0}%)", analysis.documentation.coverage_percent),
+            message: format!(
+                "Low documentation coverage ({:.0}%)",
+                analysis.documentation.coverage_percent
+            ),
         });
     }
 
@@ -203,7 +206,10 @@ fn generate_advisories(analysis: &analysis::AnalysisResult, _report: &WeatherRep
         advisories.push(Advisory {
             severity: AdvisorySeverity::Warning,
             region: None,
-            message: format!("Critical complexity (CC: {}) needs refactoring", analysis.complexity.max),
+            message: format!(
+                "Critical complexity (CC: {}) needs refactoring",
+                analysis.complexity.max
+            ),
         });
     }
 
@@ -227,37 +233,38 @@ fn analyze_regions(
     _depth: usize,
 ) -> Result<Vec<RegionalForecast>> {
     use std::collections::HashMap;
-    
+
     let mut regions: HashMap<String, analysis::AnalysisResult> = HashMap::new();
-    
+
     // Find subdirectories at depth 1
     for entry in std::fs::read_dir(base_path)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         if !path.is_dir() {
             continue;
         }
-        
-        let name = path.file_name()
+
+        let name = path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown")
             .to_string();
-        
+
         // Skip excluded
         if config.analysis.exclude.iter().any(|ex| name.contains(ex)) {
             continue;
         }
-        
-        // Analyze this region
-        let collector = Collector::new(config, &path);
+
+        // Analyze this region (no progress bar for sub-regions)
+        let collector = Collector::new(config, &path).with_progress(false);
         if let Ok(result) = collector.analyze() {
             if result.file_count > 0 {
                 regions.insert(name, result);
             }
         }
     }
-    
+
     // Convert to RegionalForecast
     let mut forecasts: Vec<RegionalForecast> = regions
         .into_iter()
@@ -271,46 +278,65 @@ fn analyze_regions(
             }
         })
         .collect();
-    
+
     // Sort by condition severity (worst first)
     forecasts.sort_by(|a, b| b.condition.priority().cmp(&a.condition.priority()));
-    
+
     Ok(forecasts)
 }
 
-fn determine_condition(analysis: &analysis::AnalysisResult, config: &config::Config) -> weather::Condition {
+fn determine_condition(
+    analysis: &analysis::AnalysisResult,
+    config: &config::Config,
+) -> weather::Condition {
     use weather::Condition;
-    
+
+    // Priority order per SPECS.md Section 3.2:
+    // 1. Stormy (critical issues always surface)
+    // 2. Frozen (abandonment is critical context)
+    // 3. Rainy
+    // 4. Foggy
+    // 5. Cloudy
+    // 6. Partly Cloudy
+    // 7. Sunny
+
+    // Check for stormy (critical issues) - HIGHEST PRIORITY
+    if analysis.complexity.max > 50 {
+        return Condition::Stormy;
+    }
+
     // Check for frozen (abandoned)
     if analysis.git.is_abandoned {
         return Condition::Frozen;
     }
-    
-    // Check for stormy (critical issues)
-    if analysis.complexity.max > 50 {
-        return Condition::Stormy;
-    }
-    
+
     // Check for foggy (poor docs)
     if analysis.documentation.coverage_percent < 20.0 {
         return Condition::Foggy;
     }
-    
+
     // Calculate score based on various metrics
-    let coverage = analysis.tests.coverage_percent.unwrap_or(
-        analysis.tests.test_to_source_ratio * 70.0
-    ).min(100.0);
-    
-    let complexity_score = if analysis.complexity.average < 10.0 { 100.0 }
-        else if analysis.complexity.average < 20.0 { 70.0 }
-        else if analysis.complexity.average < 30.0 { 40.0 }
-        else { 20.0 };
-    
+    let coverage = analysis
+        .tests
+        .coverage_percent
+        .unwrap_or(analysis.tests.test_to_source_ratio * 70.0)
+        .min(100.0);
+
+    let complexity_score = if analysis.complexity.average < 10.0 {
+        100.0
+    } else if analysis.complexity.average < 20.0 {
+        70.0
+    } else if analysis.complexity.average < 30.0 {
+        40.0
+    } else {
+        20.0
+    };
+
     let doc_score = analysis.documentation.coverage_percent;
-    
+
     // Weighted average
     let score = (coverage * 0.4 + complexity_score * 0.4 + doc_score * 0.2) as u8;
-    
+
     if score >= config.thresholds.sunny_coverage {
         Condition::Sunny
     } else if score >= config.thresholds.cloudy_coverage {
@@ -324,11 +350,14 @@ fn determine_condition(analysis: &analysis::AnalysisResult, config: &config::Con
 
 fn generate_summary(analysis: &analysis::AnalysisResult, condition: &weather::Condition) -> String {
     use weather::Condition;
-    
+
     match condition {
         Condition::Sunny => "Clean, well-tested".to_string(),
         Condition::PartlyCloudy => "Good shape, minor issues".to_string(),
-        Condition::Cloudy => format!("Moderate complexity (avg: {:.1})", analysis.complexity.average),
+        Condition::Cloudy => format!(
+            "Moderate complexity (avg: {:.1})",
+            analysis.complexity.average
+        ),
         Condition::Rainy => {
             if let Some(cov) = analysis.tests.coverage_percent {
                 format!("Low coverage ({:.0}%)", cov)
@@ -337,23 +366,26 @@ fn generate_summary(analysis: &analysis::AnalysisResult, condition: &weather::Co
             }
         }
         Condition::Stormy => format!("Critical complexity (CC: {})", analysis.complexity.max),
-        Condition::Foggy => format!("Poor documentation ({:.0}%)", analysis.documentation.coverage_percent),
+        Condition::Foggy => format!(
+            "Poor documentation ({:.0}%)",
+            analysis.documentation.coverage_percent
+        ),
         Condition::Frozen => "Abandoned".to_string(),
     }
 }
 
 fn run_init(init_args: &cli::InitArgs) -> Result<()> {
     let config_path = Path::new(".code-weather.toml");
-    
+
     if config_path.exists() && !init_args.force {
         return Err(Error::ConfigError(
-            "Config file already exists. Use --force to overwrite.".to_string()
+            "Config file already exists. Use --force to overwrite.".to_string(),
         ));
     }
 
     let content = config::generate_config(init_args.full);
     std::fs::write(config_path, content)?;
-    
+
     if init_args.full {
         println!("Created .code-weather.toml (with all options documented)");
     } else {
@@ -381,7 +413,7 @@ fn run_explain(explain_args: &cli::ExplainArgs) -> Result<()> {
             println!("{} {}", c.icon(), c);
             println!();
             println!("{}", c.description());
-            
+
             if explain_args.metrics {
                 println!();
                 println!("Metrics that trigger this condition:");
@@ -389,14 +421,21 @@ fn run_explain(explain_args: &cli::ExplainArgs) -> Result<()> {
             }
         } else {
             println!("Unknown condition: {}", condition_name);
-            println!("Valid conditions: sunny, partly-cloudy, cloudy, rainy, stormy, foggy, frozen");
+            println!(
+                "Valid conditions: sunny, partly-cloudy, cloudy, rainy, stormy, foggy, frozen"
+            );
         }
     } else {
         println!("Code Weather Conditions");
         println!("=======================");
         println!();
         for condition in Condition::all() {
-            println!("{} {} - {}", condition.icon(), condition, condition.description());
+            println!(
+                "{} {} - {}",
+                condition.icon(),
+                condition,
+                condition.description()
+            );
             if explain_args.metrics {
                 println!("   {}", condition_metrics(condition));
                 println!();
@@ -479,7 +518,7 @@ mod tests {
     fn test_init_creates_config() {
         let dir = TempDir::new().unwrap();
         std::env::set_current_dir(dir.path()).unwrap();
-        
+
         let args = Args {
             command: Some(Command::Init(cli::InitArgs {
                 full: false,
@@ -499,7 +538,7 @@ mod tests {
     fn test_init_full_config() {
         let dir = TempDir::new().unwrap();
         std::env::set_current_dir(dir.path()).unwrap();
-        
+
         let args = Args {
             command: Some(Command::Init(cli::InitArgs {
                 full: true,

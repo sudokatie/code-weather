@@ -6,7 +6,9 @@ pub struct Temperature {
 
 impl Temperature {
     pub fn new(fahrenheit: i32) -> Self {
-        Self { fahrenheit: fahrenheit.clamp(0, 100) }
+        Self {
+            fahrenheit: fahrenheit.clamp(0, 100),
+        }
     }
 
     pub fn celsius(&self) -> i32 {
@@ -71,10 +73,10 @@ pub fn calculate_temperature(
     };
 
     let total = recent_score + monthly_score + contributor_score;
-    
+
     // Map 0-100 score to temperature range (32-100°F)
     let temp = 32 + (total * 68 / 100);
-    
+
     Temperature::new(temp)
 }
 
