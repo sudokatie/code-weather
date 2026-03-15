@@ -3,6 +3,7 @@ pub mod cli;
 pub mod config;
 pub mod error;
 pub mod git;
+pub mod history;
 pub mod languages;
 pub mod output;
 pub mod weather;
